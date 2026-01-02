@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Products</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-zinc-900 text-white p-5">
+
+<a href="/" class="text-blue-500 inline-block h-50">Home</a>
+<a href="/products/new" class="text-green-500 ml-5 inline-block">Add Product</a>
+
+<h1 class="text-3xl mt-5">Products</h1>
+<div class="flex gap-5 flex-wrap mt-5">
+    <% if(products.length>0){ %>
+      <% products.forEach(product => { %>
+          <div class="w-64 bg-zinc-800 p-3 rounded-lg">
+             <h2 class="text-2xl text-center mb-2"><%= product.category %></h2>
+             <img src="<%= product.image %>" class="h-40 w-full object-cover rounded object-center">
+             <h4 class="text-xl mt-2"><%= product.title %></h4>
+             <p class="text-zinc-400"><%= product.description %></p>
+             <p class="mt-2 font-bold">Price= ₹ <%= product.price %></p>
+             <% if(currentUser && currentUser.role==="admin") { %>
+                  <a href="/products/edit/<%= product._id %>"  class="text-green-400 mt-2 inline-block">Edit details</a>
+                  <a href="/products/delete/<%= product._id %>"  class="text-red-400 mt-2 ml-2 inline-block">Delete</a>
+              <% } %>    
+         </div>
+      <% }) %>
+    <% } else{ %>
+          <div class="w-full text-center mt-20">
+             <h2 class="text-2xl text-zinc-400">No Products Available</h2>
+             <p class="text-zinc-500 mt-2">Products will appear here once they are added.</p>
+           <% if(currentUser && currentUser.role==="admin") { %>  
+                 <a href="/products/new" class="inline-block mt-5 px-6 py-2 bg-green-600 rounded hover:bg-green-700"> Add First Product</a>
+           <% } %>   
+          </div>
+        <%   } %>
+</div>
+
+</body>
+</html>

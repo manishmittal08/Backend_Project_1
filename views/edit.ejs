@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="/stylesheet/style.css">
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body>
+    <div class="w-full h-screen bg-zinc-900 text-white p-10">
+        <a href="/" class="text-blue-500 mb-5 inline-block">Back To Home/</a>
+        <a href="/logout" class="text-blue-500 mb-5 inline-block">Logout</a>
+        <h3 class="text-3xl mb-5">Edit User Details</h3>
+        <form method="post" action="/update/<%= user._id %>" class="flex flex-col gap-3 w-fit">
+            <input class="px-3 py-2 rounded-lg border-zinc-500 bg-transparent border-2 w-64" type="text" name="username" value="<%= user.username %>" >
+            <input class="px-3 py-2 rounded-lg border-zinc-500 bg-transparent border-2 w-64" type="email" name="email" value="<%= user.email %>">
+            <input class="px-3 py-2 rounded-lg border-zinc-500 bg-transparent border-2 w-64" type="password" name="password" value="">
+            <input class="px-3 py-2 rounded-lg border-zinc-500 bg-transparent border-2 w-64" type="number" name="age" min="10" max="100" value="<%= user.age %>">
+            <input class="px-5 py-2 rounded-lg border-zinc-500 bg-blue-500" type="submit" value="Edit User">
+        </form>
+    </div>
+</body>
+</html>

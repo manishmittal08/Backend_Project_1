@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="/stylesheet/style.css">
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body>
+    <div class="w-full h-screen bg-zinc-900 text-white p-10">
+        <a href="/products" class="text-blue-500 mb-5 inline-block">All Products/</a>
+        <a href="/logout" class="text-blue-500 mb-5 inline-block">Logout</a>
+        <h3 class="text-3xl mb-5">Edit Product Details</h3>
+     <form method="post" action="/products/update/<%= products._id %>" class="space-y-3 max-w-md">
+          <input name="title" value="<%= products.title %>" class="w-full p-2 bg-zinc-800" required>
+          <input name="price" value="<%= products.price %>" type="number" class="w-full p-2 bg-zinc-800" required>
+          <input name="image" value="<%= products.image %>" class="w-full p-2 bg-zinc-800">
+          <input name="category" value="<%= products.category %>" class="w-full p-2 bg-zinc-800">
+          <textarea name="description" value="<%= products.description %>" class="w-full p-2 bg-zinc-800"></textarea>
+          <input class="bg-blue-600 px-4 py-2 rounded" type="submit" value="Edit Product Details">
+     </form>
+  </div>
+</body>
+</html>

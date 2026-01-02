@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <link rel="stylesheet" href="/stylesheet/style.css">
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body>
+    <div class="w-full min-h-screen p-5 bg-zinc-900 text-white">
+        <a href="/" class="text-blue-500 mb-2 inline-block">Back to home/</a>
+        <a href="/logout" class="text-blue-500 mb-3 inline-block">Logout</a>
+        <a href="/products" class="inline-block mt-5 px-6 py-3 text-white rounded-lg hover:bg-blue-700 transition ml-5">View Products</a>
+        <h1 class="text-3xl mt-5">User</h1>
+        <div class="users flex gap-3 flex-wrap mt-3">
+            <% if (Array.isArray(user) && user.length > 0) { %>
+                <% user.forEach(function(u){ %>
+                    <div class="user w-72 p-4 bg-zinc-800 rounded-lg">
+                        <h2 class="text-xl mt-2"><%= u.username %></h2>
+                        <h4 class="text-zinc-500"><%= u.email %></h4>
+                        <p class="text-zinc-400">Age: <%= u.age %></p>
+                        <div class="flex gap-3 mt-6">
+                            <a class="text-zinc-200" href="/edit/<%= u._id %>">Edit user</a>
+                            <a class="text-red-300" href="/delete/<%= u._id %>">Delete user</a>
+                        </div>
+                    </div>
+                <% }) %>
+            <% } else if (user) { %>
+                <div class="user w-72 p-4 bg-zinc-800 rounded-lg">
+                    <h2 class="text-xl mt-2"><%= user.username %></h2>
+                    <h4 class="text-zinc-500"><%= user.email %></h4>
+                    <p class="text-zinc-400">Age: <%= user.age %></p>
+                    <div class="flex gap-3 mt-6">
+                        <a class="text-zinc-200" href="/edit/<%= user._id %>">Edit user details</a>
+                        <a class="text-red-300" href="/delete/<%= user._id %>">Delete user</a>
+                    </div>
+                </div>
+            <% } else { %>
+                <h3 class="text-red-500 text-2xl mt-5">No User Yet</h3>
+            <% } %>
+        </div>
+    </div>
+</body>
+</html>
