@@ -4,11 +4,13 @@ const app=express();
 const userModel=require('./models/user');
 const productModel=require('./models/product');
 const isAdmin=require("./middlewares/isAdmin");
+const session = require('express-session');
 
 const bcrypt=require('bcrypt');
 const jwt=require('jsonwebtoken');
 const cookieParser=require('cookie-parser');
 const path=require('path');
+require('dotenv').config();
 const PORT = process.env.PORT || 4000;
 
 app.set("view engine","ejs");
@@ -21,6 +23,11 @@ app.use((req,res,next)=>{
     res.locals.currentUser=req.user;
     next();
 })
+app.use(session({
+    secret: "cart_secret_key",
+    resave: false,
+    saveUninitialized: true,
+}));
 
 app.get("/", (req,res)=>{
     res.status(200).render('index');
@@ -70,7 +77,7 @@ app.post('/login',async (req,res)=>{
             if(result){
                 let token=jwt.sign({id: user._id},"Manish_Mittal_Ji");
                 res.cookie("token",token);
-                // console.log(user);
+                // console.log("Current User:",user);
                 res.status(200).render('users',{user:user});
             }
             else {
@@ -122,7 +129,7 @@ app.post("/update/:id",isAdmin, async (req, res) => {
 app.get("/products",async (req,res)=>{
     try {
         const products=await productModel.find();
-        console.log("Current User:",req.user);
+       // console.log("Current User:",req.user);
         res.status(200).render("products",{products: products});
     } catch (error) {
         console.error(error);
@@ -161,7 +168,7 @@ app.get("/products/delete/:id",isAdmin, async (req,res)=>{
 app.get("/products/edit/:id",isAdmin, async (req,res)=>{
     try {
         const products=await productModel.findOne({_id: req.params.id});
-        console.log(products);
+        //console.log(products);
         res.status(200).render('editProduct',{products: products});
     } catch (error) {
         console.error(error);
@@ -182,6 +189,69 @@ app.post("/products/update/:id",isAdmin, async (req, res) => {
         return res.status(500).send('Server error');
     }
 });
+app.post("/cart/add/:id",async (req,res)=>{
+    try{
+        const productId=req.params.id;
+        const product=await productModel.findById(productId);
+        if(!product){
+        return res.redirect("/products");
+        }
+        if(!req.session.cart){
+            req.session.cart=[];
+        }
+        const existingItem = req.session.cart.find(item => {
+            return item.product && item.product._id.toString() === productId;
+        });
+        if (existingItem) {
+            existingItem.quantity += 1;
+        } else {
+            req.session.cart.push({
+                product: product,
+                quantity: 1
+            });
+        }
+        console.log(req.session.cart);
+        res.redirect("/cart");
+    } catch(err){
+        console.error(err);
+        res.redirect("/products");
+    }
+});
+app.get("/cart", (req,res)=>{
+    const cart=req.session.cart || [];
+    console.log(req.session.cart);
+    let grandTotal=0;
+    cart.forEach(item=>{
+        grandTotal+=item.product.price*item.quantity
+    });
+    res.render("cart", {cart,grandTotal});
+})
+app.post("/cart/increase/:id", (req,res)=>{
+    const productId=req.params.id;
+    if(!req.session.cart){
+        return res.redirect("/cart");
+    }
+    const item=req.session.cart.find(item=> item.product._id.toString()===productId);
+    if(item){
+        item.quantity+=1;
+    }
+    res.redirect("/cart");
+})
+app.post("/cart/decrease/:id", (req,res)=>{
+    const productId=req.params.id;
+    if(!req.session.cart){
+        return res.redirect("/cart");
+    }
+    const itemIdx=req.session.cart.findIndex(item=> item.product._id.toString()===productId);
+    if(itemIdx>-1){
+        if(req.session.cart[itemIdx].quantity >1){
+            req.session.cart[itemIdx].quantity-=1;
+        }else{
+            req.session.cart.splice(itemIdx,1);
+        }
+    }
+    res.redirect("/cart");
+})
 
 app.get("/logout",(req,res)=>{
     res.clearCookie("token");
