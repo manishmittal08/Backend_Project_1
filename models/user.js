@@ -10,7 +10,19 @@ const userSchema=mongoose.Schema({
         type: String,
         enum: ["admin","user"],
         default: "user"
-    }
+    },
+    cart: [
+        {
+            product: {
+                type: mongoose.Schema.Types.ObjectId,
+                ref: "Product"
+            },
+            quantity: {
+                type: Number,
+                default: 1
+            }
+        }
+    ]
 });
 
 module.exports=mongoose.model("person",userSchema);

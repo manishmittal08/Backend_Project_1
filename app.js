@@ -3,6 +3,7 @@ const express=require('express');
 const app=express();
 const userModel=require('./models/user');
 const productModel=require('./models/product');
+const orderModel=require("./models/order");
 const isAdmin=require("./middlewares/isAdmin");
 const session = require('express-session');
 
@@ -10,8 +11,10 @@ const bcrypt=require('bcrypt');
 const jwt=require('jsonwebtoken');
 const cookieParser=require('cookie-parser');
 const path=require('path');
+
 require('dotenv').config();
 const PORT = process.env.PORT || 4000;
+const sendOrdermail=require('./utils/sendMail');
 
 app.set("view engine","ejs");
 app.use(express.json());
@@ -28,6 +31,58 @@ app.use(session({
     resave: false,
     saveUninitialized: true,
 }));
+function calculateDiscount(grandTotal) {
+  let discountPercentage = 0;
+     if(grandTotal>=100000){
+        discountPercentage=25;
+       }else if(grandTotal>=50000){
+        discountPercentage=10;
+       }else if(grandTotal>=25000){
+        discountPercentage=5;
+       }
+
+  const discountAmount = Math.round((grandTotal * discountPercentage) / 100);
+  const finalAmount = Math.round(grandTotal - discountAmount);
+
+  return {
+    discountPercentage,
+    discountAmount,
+    finalAmount
+  };
+}
+function isValidPhone(phone){
+    return /^\+91[6-9][0-9]{9}$/.test(phone);
+}
+
+// Centralized totals calculation (auto discount + coupon)
+function computeTotals(grandTotal, couponCode) {
+    const auto = calculateDiscount(grandTotal);
+    const discountAmount = auto.discountAmount || 0;
+    const autoFinal = auto.finalAmount;
+
+    let couponUsed = null;
+    let couponDiscount = 0;
+
+    if (couponCode === 'SAVE10') {
+        couponUsed = 'SAVE10';
+        couponDiscount = Math.round((autoFinal * 10) / 100);
+    } else if (couponCode === 'SAVE25') {
+        couponUsed = 'SAVE25';
+        couponDiscount = Math.round((autoFinal * 25) / 100);
+    }
+
+    const finalAmount = Math.round(autoFinal - couponDiscount);
+
+    return {
+        grandTotal,
+        discountAmount,
+        autoFinal,
+        couponUsed,
+        couponDiscount,
+        finalAmount
+    };
+}
+
 
 app.get("/", (req,res)=>{
     res.status(200).render('index');
@@ -192,66 +247,235 @@ app.post("/products/update/:id",isAdmin, async (req, res) => {
 app.post("/cart/add/:id",async (req,res)=>{
     try{
         const productId=req.params.id;
-        const product=await productModel.findById(productId);
-        if(!product){
-        return res.redirect("/products");
-        }
-        if(!req.session.cart){
-            req.session.cart=[];
-        }
-        const existingItem = req.session.cart.find(item => {
-            return item.product && item.product._id.toString() === productId;
-        });
-        if (existingItem) {
-            existingItem.quantity += 1;
-        } else {
-            req.session.cart.push({
-                product: product,
+        const user=req.user;
+
+        if(!user) return (res.redirect("/login"));
+            user.cart.push({
+                product: productId,
                 quantity: 1
             });
-        }
-        console.log(req.session.cart);
+        await user.save();
         res.redirect("/cart");
+        // const product=await productModel.findById(productId);
+        // if(!product){
+        // return res.redirect("/products");
+        // }
+        // if(!req.session.cart){
+        //     req.session.cart=[];
+        // }
+        // const existingItem = req.session.cart.find(item => {
+        //     return item.product && item.product._id.toString() === productId;
+        // });
+        // if (existingItem) {
+        //     existingItem.quantity += 1;
+        // } else {
+        //     req.session.cart.push({
+        //         product: product,
+        //         quantity: 1
+        //     });
+        // }
+        // console.log(req.session.cart);
+        // res.redirect("/cart");
     } catch(err){
         console.error(err);
         res.redirect("/products");
     }
 });
-app.get("/cart", (req,res)=>{
-    const cart=req.session.cart || [];
-    console.log(req.session.cart);
+app.get("/cart",async (req,res)=>{
+    if(!req.user) return res.redirect("/login");
+    const user=await req.user.populate("cart.product");
     let grandTotal=0;
-    cart.forEach(item=>{
+    user.cart.forEach(item=>{
         grandTotal+=item.product.price*item.quantity
     });
-    res.render("cart", {cart,grandTotal});
+    // discount from session(If applied)
+    const discount=req.session.discount || {
+        discountPercentage: 0,
+        discountAmount: 0,
+        finalAmount: grandTotal
+    };
+    res.render("cart", {cart: user.cart,grandTotal,discount});
 })
-app.post("/cart/increase/:id", (req,res)=>{
+app.post("/cart/increase/:id",async (req,res)=>{
     const productId=req.params.id;
-    if(!req.session.cart){
-        return res.redirect("/cart");
+    const user=req.user;
+    const itemIdx=user.cart.findIndex(item=> item.product._id.toString()===productId);
+    if(itemIdx>=0){
+        user.cart[itemIdx].quantity+=1;
+        await user.save();
+        // delete req.session.discount;
     }
-    const item=req.session.cart.find(item=> item.product._id.toString()===productId);
-    if(item){
-        item.quantity+=1;
-    }
+     await user.save();
     res.redirect("/cart");
 })
-app.post("/cart/decrease/:id", (req,res)=>{
+app.post("/cart/decrease/:id",async (req,res)=>{
     const productId=req.params.id;
-    if(!req.session.cart){
-        return res.redirect("/cart");
-    }
-    const itemIdx=req.session.cart.findIndex(item=> item.product._id.toString()===productId);
-    if(itemIdx>-1){
-        if(req.session.cart[itemIdx].quantity >1){
-            req.session.cart[itemIdx].quantity-=1;
+    const user=req.user;
+    const itemIdx=user.cart.findIndex(item=> item.product._id.toString()===productId);
+    if(itemIdx!==-1){
+        if(user.cart[itemIdx].quantity >1){
+            user.cart[itemIdx].quantity-=1;
+             await user.save();
+            //delete req.session.discount;
         }else{
-            req.session.cart.splice(itemIdx,1);
+            user.cart.splice(itemIdx,1);
+             await user.save();
+            //delete req.session.discount;
         }
+        await user.save();
     }
     res.redirect("/cart");
 })
+app.post("/cart/check-discount",async (req,res)=>{
+    if(!req.user) return res.redirect("/login");
+    const user=await req.user.populate("cart.product");
+    const cart=user.cart || [];
+    let grandTotal=0;
+    cart.forEach(item=>{
+        grandTotal+= item.product.price * item.quantity;
+    })
+    const discount=calculateDiscount(grandTotal);
+    req.session.discount=discount;
+    res.redirect("/cart");
+})
+app.get("/checkout", async (req, res) => {
+  if (!req.user) return res.redirect("/login");
+
+  const user = await req.user.populate("cart.product");
+  let grandTotal = 0;
+  user.cart.forEach(item => {
+    grandTotal += item.product.price * item.quantity;
+  });
+
+  const discount = calculateDiscount(grandTotal);
+  let totalAmount=discount.finalAmount;
+  res.render("checkout", {
+    cart: user.cart,
+    grandTotal,
+    discount,
+    userEmail: user.email,
+    totalAmount
+  });
+});
+
+app.post("/checkout", async (req, res) => {
+  try {
+    if (!req.user) return res.redirect("/login");
+    const { address, phone, coupon, confirmEmail, totalAmount } = req.body;
+    const user = await req.user.populate("cart.product");
+
+    if (user.cart.length === 0) {
+      return res.redirect("/cart");
+    }
+    if(!isValidPhone(phone)){
+        return res.status(400).send("Invalid Phone Number!");
+    }
+    // 1. Grand total
+    let grandTotal = 0;
+    user.cart.forEach(item => {
+      grandTotal += item.product.price * item.quantity;
+    });
+
+        // determine coupon: prefer explicit form value, then session-stored coupon
+        const appliedCoupon = coupon || req.session.coupon || null;
+
+        // 2-3. Apply automatic discount and coupon consistently
+        const totals = computeTotals(grandTotal, appliedCoupon);
+        const autoDiscount = { discountAmount: totals.discountAmount, finalAmount: totals.autoFinal };
+        let finalAmount = totals.finalAmount;
+        let couponDiscount = totals.couponDiscount;
+        let couponUsed = totals.couponUsed;
+
+    // 4. Save order
+    const order = new orderModel({
+      user: user._id,
+      items: user.cart.map(item => ({
+        product: item.product._id,
+        price: item.product.price,
+        quantity: item.quantity
+      })),
+      grandTotal,
+      discountamount: autoDiscount.discountAmount,
+      couponUsed,
+      couponDiscount,
+      finalamount: finalAmount,
+      address,
+      phone
+    });
+
+        await order.save();
+
+        // Log saved order totals for debugging
+        console.log('ORDER SAVED - totals:', {
+            orderId: order._id,
+            grandTotal: order.grandTotal,
+            discountamount: order.discountamount,
+            couponUsed: order.couponUsed,
+            couponDiscount: order.couponDiscount,
+            finalamount: order.finalamount
+        });
+
+        try {
+            await sendOrdermail(user.email, await order.populate("items.product"));
+        } catch (emailError) {
+            console.log("Email sending failed:", emailError);
+            // Continue with cart clearing even if email fails
+        }
+    
+    // 5. Clear cart
+    user.cart = [];
+    await user.save();
+
+    // clear session coupon after order placed so it doesn't linger
+    if (req.session && req.session.coupon) req.session.coupon = null;
+
+    res.redirect(`/order/success/${order._id}`);
+  } catch (err) {
+    console.log(err);
+    res.redirect("/checkout");
+  }
+});
+
+app.post("/apply-coupon",async (req,res)=>{
+    if (!req.user) return res.redirect("/login");
+    const {coupon}=req.body;
+    const user=await req.user.populate("cart.product");
+
+    let grandTotal=0;
+    user.cart.forEach(item => {
+      grandTotal += item.product.price * item.quantity;
+    });
+
+    const autoDiscount = calculateDiscount(grandTotal);
+    let finalAmount = autoDiscount.finalAmount;
+
+    // Use computeTotals to validate and calculate coupon
+    const totals = computeTotals(grandTotal, coupon);
+    if (!totals.couponUsed) {
+        return res.json({
+            success: false,
+            message: "Invalid or not applicable coupon"
+        });
+    }
+    req.session.coupon = coupon;
+    res.json({
+        success: true,
+        totalAmount: totals.finalAmount,
+        message: "Coupon applied successfully!"
+    });
+});
+app.get('/order/success/:id',async (req,res)=>{
+    try{
+        const order=await orderModel.findById(req.params.id).populate("items.product").populate("user");
+        if(!order){
+            return res.redirect("/products");
+        }
+        res.render("orderSuccess",{order});
+    }catch(err){
+        console.log(err);
+        res.redirect("/products");
+    }
+});
 
 app.get("/logout",(req,res)=>{
     res.clearCookie("token");

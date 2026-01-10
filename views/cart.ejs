@@ -7,8 +7,12 @@
 </head>
 
 <body class="bg-zinc-900 text-white p-6">
-
-  <h1 class="text-3xl font-bold mb-6">My Cart</h1>
+  <div class="mt-2 mb-4">
+      <a href="/products" class="text-blue-400">← Continue Shopping</a>
+      <a href="/checkout" class="text-yellow-400 ml-4">Checkout Details</a>
+      
+  </div>
+  <h1 class="text-3xl font-bold mb-4">My Cart</h1>
   <% if (cart.length === 0) { %>
       <p class="text-zinc-400">Your cart is empty.</p>
       <a href="/products" class="text-blue-400 underline mt-4 inline-block">Go to Products</a>
@@ -37,10 +41,23 @@
         <% }) %>
             <h2 class="font-bold text-xl">Grand Total: ₹<%= grandTotal %></h2>
             <hr>
+            <!-- Discount Button -->
+             <form action="/cart/check-discount" method="POST" class="mt-4">
+             <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded">Check Discount</button> 
+             </form>
+             <% if(discount){ %>
+                <% if(discount.discountPercentage>0){ %>
+                    <div class="mt-4 p-4 bg-green-600 rounded">
+                        <p>Discount Applied: <%= discount.discountPercentage %>%</p>
+                        <p>Discount Amount: ₹<%= discount.discountAmount %></p>
+                        <p class="font-bold text-2xl text-black">Final Amount: ₹<%= discount.finalAmount %></p>
+                    </div>
+                  <% } else{ %>
+                    <div class="mt-4 p-4 bg-red-600 rounded">
+                        <p>No discount available for this amount! Increase your cart value to qualify for a discount.</p>
+                     <% } %> 
+              <% } %>      
        </div>
-    <div class="mt-6">
-      <a href="/products" class="text-blue-400 underline">← Continue Shopping</a>
-    </div>
   <% } %>
 </body>
 </html>
