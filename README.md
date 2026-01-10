@@ -66,6 +66,24 @@ This project helped me understand how real backend applications work step by ste
 
 ---
 
+### Order Management & Checkout
+- Complete checkout flow
+- User address and phone validation
+- Order placed and saved to MongoDB
+- **Automatic Discount System**:
+  - 5% discount on purchases ≥ 25,000
+  - 10% discount on purchases ≥ 50,000
+  - 25% discount on purchases ≥ 100,000
+- **Coupon Code System**:
+  - `SAVE10` - 10% additional discount
+  - `SAVE25` - 25% additional discount
+  - Coupons applied on top of automatic discounts
+- Order confirmation email sent to user
+- Order success page with details
+- Order status tracking (default: "Placed")
+
+---
+
 ## Tech Stack Used
 
 - Node.js
@@ -76,6 +94,7 @@ This project helped me understand how real backend applications work step by ste
 - bcrypt
 - cookie-parser
 - express-session
+- nodemailer (for order confirmation emails)
 
 ---
 
@@ -112,6 +131,28 @@ This project helped me understand how real backend applications work step by ste
 
 ---
 
+## Discount & Coupon Logic
+
+### Automatic Discount
+- Based on cart grand total:
+  - Below 25,000: No discount
+  - 25,000 - 49,999: 5% discount
+  - 50,000 - 99,999: 10% discount
+  - 100,000+: 25% discount
+
+### Coupon Codes
+- `SAVE10`: Gives 10% additional discount on the discounted price
+- `SAVE25`: Gives 25% additional discount on the discounted price
+- Coupons are stacked on top of automatic discounts
+
+### Order Placement
+- User must enter valid address and phone number
+- Phone validation: Must follow Indian format (+91 + 6-9 + 9 digits)
+- Order is saved with all discount details
+- Confirmation email is sent to user
+
+---
+
 ## Project Folder Structure
 
 Authentication/
@@ -122,14 +163,19 @@ Authentication/
 │
 ├── models/
 │ ├── user.js
-│ └── product.js
+│ ├── product.js
+│ └── order.js
 │
 ├── views/
+│ ├── index.ejs
 │ ├── products.ejs
 │ ├── cart.ejs
+│ ├── checkout.ejs
+│ ├── orderSuccess.ejs
 │ ├── login.ejs
 │ ├── addProducts.ejs
 │ ├── editProduct.ejs
+│ ├── edit.ejs
 │ └── users.ejs
 │
 ├── public/
@@ -139,10 +185,14 @@ Authentication/
 │ └── javascripts/
 │ └── script.js
 │
+├── utils/
+│ └── sendMail.js
+│
 ├── app.js
 ├── .gitignore
 ├── package.json
 ├── package-lock.json
+└── README.md
 
 ---
 
